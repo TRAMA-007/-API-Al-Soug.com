@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from fastapi import FastAPI
 
-url = 'https://www.alsoug.com/en/currency'
+url = 'https://www.alsoug.com/currency'
 
 headers = {
     'User-Agent': (
@@ -71,3 +71,4 @@ def root():
             'QAR': qar, 'Black_QAR': bqar,
         }
     }
+
