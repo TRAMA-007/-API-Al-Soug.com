@@ -1,51 +1,79 @@
+from bs4 import BeautifulSoup
+import requests
 from fastapi import FastAPI
-import random
-import httpx 
 
-    
+url = 'https://www.alsoug.com/en/currency'
 
-jokes = [
-'مرة واحد فات لي بتاع الدكان قال ليهو اديني طحنية قال ليهو ما عندي و هو عندو😆',
-'قال ليك عسكري مع ايام حظر التجوال ديك قالو ليهو اي زول تشوفو حايم بعد الساعة 7 اديهو طلقة...الساعة 6 شاف ليهو زول في شارع عبيد ختم طاخ ضربو  بي طلقة...الجماعة سألوهن قتلته ليي؟..قال ليك دا انا عارفو ساكن الكلاكلة م ح يحصل سريع 🤣🤣🤣🤣🤣', 
-'واحد حلب ليهو ليمونة رفستو🤣', 
-'واحد خيالو واسع اتملص منو😆' ,
-'واحد عمل ليه شاي  تقيل م قدر يشيلو😆' ,
-'واحد جاب شعرو بالجمبه عشان كان دايرو في موضوع😆',
-'واحد اسمو حسن نجيلة  نسى الباب فاتح الغنماية دخلت اكلت ابوه😆',
-'واحد كراعو خدرت وداها المشتل😆',
-'مره واحد اسمه احمد عماره داير ينتحر نط من فوق ابوه😆',
-'واحدة شعرها ناعم ختتو ف شياله😆',
-'واحد رجع في كلامه عفصو😆',
-'ضابط مرور عرس ضابطة جابو اولاد بتكلمو بالاشارات😆',
-'واحد اسمو سامح خت يدو في اضانو بقا م سامح😆',
-'استاذ عربي وقع رفعوه بالضمه😆',
-'واحده اسمها اسرار ضربتها عربيه الشارع اتملا فضايح😆',
-'مسطول داير يقطع الزلط لقى السكينه ميته😆',
-'واحده اسمها بسمه كبرت بقت توقيع😆',
-'مره مدير عام ومدير غرق😆',
-'واحد عرس صينيه شال فيها الاكل😆',
-'استاذ رياضيات طقتو ركشه فات المستشفى قالو ليهو عندك كسور قاليهم وحدو المقامات😆',
-'مسطول عرف انو الشيطان شاطر فات يراجع معاه حسبان',
-'واحد رجلينو رقاق اتسحر بيهم😆',
-'واحدة اسمها رنين غابت عن الدوام سجلوها مكالمه فائته😆',
-'واحد عيونو صغار دخلهم الروضه😆',
-'واحد أضانو تقيلة جاب لي درداقة😆',
-'واحد حلق لبستو أختو😆']
+headers = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/91.0.4472.124 Safari/537.36'
+    )
+}
 
+app = FastAPI()
 
-def rate () :
-    try :
-        async with httpx.AsyncClient as client :
-            response = client.get('')
+@app.get('/')
+def health():
+    return {'Server is Healthy 🌐': True}
 
-app = FastAPI(version=1)
+@app.get('/rates')
+def root():
+    try:
+        page = requests.get(url, headers=headers, timeout=10)
+        page.encoding = 'utf-8'
+        page.raise_for_status()
 
-@app.get ('/')
-def health () :
-    return {'Server is Healthy 🌐'}
+        soup = BeautifulSoup(page.text, 'html.parser')
 
-@app.get('/joke')
-def rJoke () :
-    joke = random.choice(jokes)
-    return {"Joke" : joke , "Author" : 'TRAMAZOOL 💊'}
+        # Site actually uses <sapn>, not <span>
+        sopo = soup.find_all('sapn')
 
+        rates = []
+        for tag in sopo:
+            text_value = tag.get_text(strip=True).replace(',', '')
+            try:
+                num = float(text_value)
+                rates.append(num)
+            except ValueError:
+                # ignore non-numeric entries
+                continue
+
+        # DEBUG: if you want to inspect
+        # print("RATES:", rates)
+
+        # Make sure we have at least 12 numeric values
+        if len(rates) < 12:
+            return {
+                "error": f"Expected at least 12 numeric rates, found {len(rates)}",
+                "collected_rates": rates
+            }
+
+        usd,  busd  = rates[0],  rates[1]
+        aed,  baed  = rates[2],  rates[3]
+        eur,  beur  = rates[4],  rates[5]
+        sar,  bsar  = rates[6],  rates[7]
+        egp,  begp  = rates[8],  rates[9]
+        qar,  bqar  = rates[10], rates[11]
+
+    except Exception as e:
+        # Return error to client
+        return {"error": str(e)}
+
+    return {
+        'sdg_rates': {
+            'USD': usd,
+            'Black_USD': busd,
+            'AED': aed,
+            'Black_AED': baed,
+            'EUR': eur,
+            'Black_EUR': beur,
+            'SAR': sar,
+            'Black_SAR': bsar,
+            'EGP': egp,
+            'Black_EGP': begp,
+            'QAR': qar,
+            'Black_QAR': bqar,
+        }
+    }
